@@ -16,3 +16,7 @@
 .cvat-label-counts-inner-wrapper {
     @include cvat-management-page-inner-wrapper;
 }
+
+.cvat-label-counts-chart {
+    margin-top: $grid-unit-size * 2;
+}
