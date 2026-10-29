@@ -9,6 +9,7 @@ import { useParams } from 'react-router';
 import { Row, Col } from 'antd/lib/grid';
 import Button from 'antd/lib/button';
 import Empty from 'antd/lib/empty';
+import Radio from 'antd/lib/radio';
 import Result from 'antd/lib/result';
 import Title from 'antd/lib/typography/Title';
 import Text from 'antd/lib/typography/Text';
@@ -17,7 +18,7 @@ import { ServerError } from 'cvat-core-wrapper';
 import GoBackButton from 'components/common/go-back-button';
 import CVATLoadingSpinner from 'components/common/loading-spinner';
 import { TaskLabelCounts, fetchLabelCounts } from './label-counts-api';
-import LabelCountsChart from './label-counts-chart';
+import LabelCountsChart, { GroupBy } from './label-counts-chart';
 
 // Turns a failed request into a message the user can act on.
 function describeError(error: unknown, taskId: number): string {
@@ -43,6 +44,7 @@ function LabelCountsPage(): JSX.Element {
     const taskId = +useParams<{ tid: string }>().tid;
     const [counts, setCounts] = useState<TaskLabelCounts | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [groupBy, setGroupBy] = useState<GroupBy>('label');
 
     const loadCounts = useCallback(async (): Promise<void> => {
         setCounts(null);
@@ -81,8 +83,19 @@ function LabelCountsPage(): JSX.Element {
     } else {
         content = (
             <>
-                <Text type='secondary'>{`Total: ${counts.total}`}</Text>
-                <LabelCountsChart labels={counts.labels} />
+                <div className='cvat-label-counts-toolbar'>
+                    <Text type='secondary'>{`Total: ${counts.total}`}</Text>
+                    <Radio.Group
+                        size='small'
+                        buttonStyle='solid'
+                        value={groupBy}
+                        onChange={(event) => setGroupBy(event.target.value)}
+                    >
+                        <Radio.Button value='label'>Label</Radio.Button>
+                        <Radio.Button value='type'>Shape type</Radio.Button>
+                    </Radio.Group>
+                </div>
+                <LabelCountsChart labels={counts.labels} groupBy={groupBy} />
             </>
         );
     }

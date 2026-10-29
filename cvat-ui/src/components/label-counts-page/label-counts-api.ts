@@ -11,6 +11,8 @@ export interface LabelCount {
     name: string;
     color: string;
     count: number;
+    // Split of `count` by shape type ("rectangle", "polygon", "mask", ...), plus "track" and "tag".
+    by_type: Record<string, number>;
 }
 
 export interface TaskLabelCounts {
