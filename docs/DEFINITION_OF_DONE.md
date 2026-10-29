@@ -24,8 +24,12 @@ unticked.
 
 ## Beyond the floor
 
-- [ ] No login → `401`, shown with curl output.
-- [ ] Logged-in user with no access to the task → `403`, shown with curl output.
+- [x] No login → `401`, shown with curl output. No credentials, a wrong password and an
+      invalid token all get 401. [E4](#e4-access-checks).
+- [x] Logged-in user with no access to the task → `403`, shown with curl output.
+      [E4](#e4-access-checks). The same user gets 200 once assigned to the task and 403
+      again once unassigned, and every decision matches CVAT's own
+      `GET /api/tasks/<id>/annotations`.
 - [ ] MO-1 measured: 5 runs, raw output saved, median and spread in
       [OBJECTIVES.md](OBJECTIVES.md).
 - [ ] MO-1 target met, or missed with the reason written down.
@@ -127,3 +131,33 @@ Try again
 
 Not checked in the browser: the 401 message (CVAT's app sends a logged-out user to the
 login page first), and a 5xx response.
+
+### E4. Access checks
+
+Task #4 (COCO). `outsider` and `annotator` are ordinary users (group `user`) with no
+organization and no relation to the task unless stated. Body cut at 90 characters.
+
+```
+$ GET /api/test/tasks/4/label-counts    (status  body)
+1. no credentials                                   401  {"detail":"Authentication credentials were not provided."}
+2. wrong password (admin)                           401  {"detail":"Invalid username/password."}
+3. invalid token                                    401  {"detail":"Invalid token."}
+4. outsider (no relation to task #4)                403  {"detail":"You do not have permission to perform this action."}
+5. annotator, not assigned yet                      403  {"detail":"You do not have permission to perform this action."}
+  (admin sets task #4 assignee to 3: 200)
+6. annotator, now assignee of task #4               200  {"task_id":4,"total":41866,"labels":[{"id":86,"name":"person","color":"#c06060","count":12
+  (admin sets task #4 assignee to null: 200)
+7. annotator, assignment removed                    403  {"detail":"You do not have permission to perform this action."}
+8. admin                                            200  {"task_id":4,"total":41866,"labels":[{"id":86,"name":"person","color":"#c06060","count":12
+
+Same users, CVAT's own GET /api/tasks/4/annotations vs the new endpoint:
+user                         /api/tasks/4/annotations     /api/test/tasks/4/label-counts
+no credentials               401                          401
+outsider                     403                          403
+annotator (not assigned)     403                          403
+admin                        200                          200
+```
+
+The endpoint writes no access rule of its own (`cvat/apps/test/permissions.py`): it asks
+CVAT's OPA policy for the task `view:annotations` scope, the same check behind
+`GET /api/tasks/<id>/annotations`, which is why the two columns above agree.
