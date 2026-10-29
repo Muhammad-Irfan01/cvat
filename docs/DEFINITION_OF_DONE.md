@@ -55,19 +55,51 @@ unticked.
       and showed the 2 missed boxes (Total 11 → 13) without a reload
       ([screenshot](img/reconnected.png)). A refused socket (no access) is not retried.
       [E7](#e7-recovery-after-a-dropped-connection). Commit `928668671`.
-- [ ] Decision record at the end of the Plan.
+- [x] Decision record at the end of the Plan. [Plan, Decision record](PLAN.md#decision-record):
+      re-read over HTTP on a "changed" event, rather than pushing counts through Django
+      Channels, and what that cost.
 
 ## Hygiene
 
-- [ ] Backend change lives in `cvat/apps/test`; the only edits outside it are the
-      registration lines (settings, URLs) and the UI route.
-- [ ] No dead code, commented-out blocks or stray files in the diff.
-- [ ] Commits show the work progressing, each message says what and why.
-- [ ] Everything I did not finish is listed below, with the reason.
+- [x] Backend change lives in `cvat/apps/test`; the only edits outside it are the
+      registration lines (settings, URLs) and the UI route. Plus two I did not plan:
+      `cvat/asgi.py` (+6 lines, mounts the WebSocket, item 8) and the "Label counts" entry
+      in the task Actions menu (+6 lines). The UI lives in
+      `cvat-ui/src/components/label-counts-page/`. The diff only adds lines:
+      `git diff --stat 4a09e27ff -- . ':!docs'` → 20 files, 830 insertions, 0 deletions.
+- [x] No dead code, commented-out blocks or stray files in the diff. A search of the diff
+      for `console.log`, `print(`, `debugger`, `TODO`, `FIXME` and commented-out code
+      found none. CVAT's pinned formatters on the Python code: `black 26` "12 files would
+      be left unchanged", `isort 7` clean; `eslint`, `stylelint` and `tsc` clean on the UI
+      files. `docs/img/` (screenshots) and `docs/bench/` (the MO-1 script) are evidence,
+      kept on purpose; the Docker override and test scripts stay outside the repository.
+- [x] Commits show the work progressing, each message says what and why. The plan is the
+      first commit, objectives and this checklist the second, then one or more commits per
+      item, each with a body explaining why (`git log 4a09e27ff..dev-test01`).
+- [x] Everything I did not finish is listed below, with the reason.
 
 ## Not finished
 
-_Filled in at the end._
+- **No automated tests.** Every check above is manual, with its raw output pasted. The
+  Plan skipped frontend tests up front; backend tests would need CVAT's test setup with
+  the OPA server, and I spent the time on the evidence instead. The first tests I would
+  add: counts on the hand-built task (E1), and 401/403 against the endpoint (E4).
+- **Not exercised in the browser:** the 401 message (CVAT sends a logged-out user to the
+  login page before the page loads) and a 5xx response. Both fall into branches of
+  `describeError` that I read but did not run.
+- **Live updates cover annotation changes only.** Renaming a label or changing its color
+  saves a `Label`, not the task's `updated_date`, so an open page shows the old name until
+  the next annotation change or a reload.
+- **Not measured:** the endpoint on tasks larger than COCO val (the ~3x limit in
+  OBJECTIVES.md is an estimate), and the load of many pages open on one busy task (the
+  cost named in the decision record).
+- **Small known gaps in the WebSocket:** a connection without an `Origin` header (not a
+  browser) is allowed, since it still needs the session cookie; and the page shows "Live"
+  for a moment before a refused socket is closed, because the server accepts the socket
+  first so that it can send a close code the page can read.
+- **Not built into the Docker images.** I ran the change by bind-mounting the changed
+  files into the stock `cvat/server:dev` and `cvat/ui:dev` containers (see the Plan); I
+  did not rebuild the images with the change.
 
 ## Evidence
 
