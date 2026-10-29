@@ -31,6 +31,10 @@ Measured 29 Oct 2026 on the machine in the [Plan](PLAN.md#environment), task #4 
 | A | `/api/tasks/4` (CVAT, reference) | basic | 603.0 ms | 10.4 ms | — |
 | B | `/api/test/tasks/4/label-counts` | token | **46.3 ms** | **0.9 ms** | **met** |
 | B | `/api/tasks/4` (CVAT, reference) | token | 30.3 ms | 0.6 ms | — |
+| C | `/api/test/tasks/4/label-counts`, after item 7 | token | **51.7 ms** | 1.8 ms | **met** |
+
+Run C repeats run B after item 7 (commit `35c07d258`), which groups shapes by
+(label, type) instead of label alone. The extra grouping column costs ~5 ms.
 
 **Method change, and why.** Run A followed the method as written and missed the target.
 The reference endpoint, which does almost nothing, was just as slow, so the time was not
@@ -117,6 +121,21 @@ run 5: median 30.3  raw: 31.6 30.1 29.1 30.8 35.7 31.3 29.8 30.5 29.8 29.4 31.3 
 run medians: 30 30.45 30.45 29.8 30.3
 median of runs: 30.3 ms
 spread (max - min): 0.6 ms
+```
+
+### Raw output, run C (token auth, after item 7)
+
+```
+GET http://localhost:8080/api/test/tasks/4/label-counts  (token auth)
+5 runs x 20 requests, 1 warm-up per run, times in ms
+run 1: median 51.2  raw: 51.4 50.0 52.0 51.4 50.5 50.7 51.2 51.5 50.5 51.0 51.7 52.0 51.2 51.0 51.0 51.8 53.5 50.2 51.2 49.6
+run 2: median 50.65  raw: 50.0 50.3 50.7 50.0 63.5 52.2 50.2 62.3 58.8 50.2 50.6 49.9 50.5 50.5 50.7 50.4 52.2 52.3 52.7 50.8
+run 3: median 52.45  raw: 49.9 50.5 51.1 52.3 50.4 50.5 60.7 54.3 53.8 51.5 52.6 51.3 54.6 52.9 53.2 54.5 54.8 51.5 51.6 57.3
+run 4: median 51.8  raw: 52.5 58.3 51.9 51.0 53.1 52.4 52.4 50.8 52.5 61.5 53.3 51.4 51.9 51.1 51.7 51.0 51.2 51.5 50.5 51.2
+run 5: median 51.65  raw: 57.9 51.3 52.1 51.5 51.0 51.8 51.7 52.1 51.5 50.5 58.3 51.3 52.4 57.4 53.4 51.6 50.5 51.6 57.5 51.2
+run medians: 51.2 50.65 52.45 51.8 51.65
+median of runs: 51.65 ms
+spread (max - min): 1.8 ms
 ```
 
 ### Query plan (`EXPLAIN (ANALYZE, BUFFERS)` of the shape query, key lines)

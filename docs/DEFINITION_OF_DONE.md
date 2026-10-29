@@ -37,7 +37,12 @@ unticked.
       **46.3 ms** median, 0.9 ms spread (target ≤ 100 ms). Missed with basic auth as first
       planned (619.3 ms), because of per-request password hashing; the reason and the
       method change are written in [Results](OBJECTIVES.md#results).
-- [ ] One filter or grouping beyond the plain count, and why I chose it.
+- [x] One filter or grouping beyond the plain count, and why I chose it. Each label's
+      count is split by annotation type (`by_type` in the response, "Shape type" switch on
+      the page). Why: it answers what each class is made of, and on COCO it explains the
+      count gap in the Plan: 41 420 polygons + 446 masks, where the 446 masks are exactly
+      COCO's 446 `iscrowd` regions. [E5](#e5-grouping-by-annotation-type),
+      [screenshot](img/chart-coco-by-type.png). Commits `35c07d258`, `c956d6200`.
 - [ ] The chart updates live over WebSocket when annotations change.
 - [ ] The page recovers when the connection drops and comes back.
 - [ ] Decision record at the end of the Plan.
@@ -165,3 +170,26 @@ admin                        200                          200
 The endpoint writes no access rule of its own (`cvat/apps/test/permissions.py`): it asks
 CVAT's OPA policy for the task `view:annotations` scope, the same check behind
 `GET /api/tasks/<id>/annotations`, which is why the two columns above agree.
+
+### E5. Grouping by annotation type
+
+Hand-built task #1 (3 cat boxes + 1 cat tag, 1 dog box + 1 dog track):
+
+```
+$ curl -s -u admin:*** http://localhost:8080/api/test/tasks/1/label-counts
+{"task_id":1,"total":6,"labels":[{"id":1,"name":"cat","color":"#6080c0","count":4,"by_type":{"rectangle":3,"tag":1}},{"id":2,"name":"dog","color":"#406040","count":2,"by_type":{"rectangle":1,"track":1}},{"id":3,"name":"bird","color":"#404040","count":0,"by_type":{}}]}
+```
+
+COCO task #4, summed over all labels, and the largest label. Every label's `by_type`
+adds up to its `count` (checked in the script):
+
+```
+total 41866
+by type over all labels: {'mask': 446, 'polygon': 41420}
+{'id': 86, 'name': 'person', 'color': '#c06060', 'count': 12451, 'by_type': {'mask': 227, 'polygon': 12224}}
+COCO iscrowd annotations (stored by CVAT as masks): 446
+person iscrowd annotations: 227
+```
+
+Screenshots: [hand-built task](img/chart-known-by-type.png),
+[COCO](img/chart-coco-by-type.png).
