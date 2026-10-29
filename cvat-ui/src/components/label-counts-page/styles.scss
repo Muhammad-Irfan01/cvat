@@ -11,6 +11,9 @@
 
 .cvat-label-counts-inner {
     @include cvat-management-page-inner;
+
+    // With many labels the chart is taller than the card, so the card scrolls.
+    overflow-y: auto;
 }
 
 .cvat-label-counts-inner-wrapper {
@@ -19,4 +22,8 @@
 
 .cvat-label-counts-chart {
     margin-top: $grid-unit-size * 2;
+
+    // The card is a flex column of fixed height; without this the chart would be
+    // squeezed to fit it and the bars and label names would overlap.
+    flex-shrink: 0;
 }
