@@ -33,3 +33,14 @@
     justify-content: space-between;
     align-items: center;
 }
+
+.cvat-label-counts-header {
+    display: flex;
+    align-items: center;
+    gap: $grid-unit-size;
+    margin-top: $grid-unit-size * 2;
+
+    h4.ant-typography {
+        margin: 0;
+    }
+}

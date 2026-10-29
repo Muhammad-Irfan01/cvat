@@ -11,6 +11,7 @@ import Button from 'antd/lib/button';
 import Empty from 'antd/lib/empty';
 import Radio from 'antd/lib/radio';
 import Result from 'antd/lib/result';
+import Tag from 'antd/lib/tag';
 import Title from 'antd/lib/typography/Title';
 import Text from 'antd/lib/typography/Text';
 
@@ -19,6 +20,13 @@ import GoBackButton from 'components/common/go-back-button';
 import CVATLoadingSpinner from 'components/common/loading-spinner';
 import { TaskLabelCounts, fetchLabelCounts } from './label-counts-api';
 import LabelCountsChart, { GroupBy } from './label-counts-chart';
+import { ConnectionStatus, useLabelCountsUpdates } from './use-label-counts-updates';
+
+const CONNECTION_TAGS: Record<ConnectionStatus, { color: string, text: string }> = {
+    connecting: { color: 'default', text: 'Connecting…' },
+    live: { color: 'green', text: 'Live' },
+    closed: { color: 'red', text: 'Not live: reload to see new changes' },
+};
 
 // Turns a failed request into a message the user can act on.
 function describeError(error: unknown, taskId: number): string {
@@ -46,19 +54,29 @@ function LabelCountsPage(): JSX.Element {
     const [error, setError] = useState<string | null>(null);
     const [groupBy, setGroupBy] = useState<GroupBy>('label');
 
-    const loadCounts = useCallback(async (): Promise<void> => {
-        setCounts(null);
-        setError(null);
+    // Re-reads the counts and swaps them in, without showing the spinner.
+    // Used for live updates, so the chart changes in place.
+    const refreshCounts = useCallback(async (): Promise<void> => {
         try {
             setCounts(await fetchLabelCounts(taskId));
+            setError(null);
         } catch (requestError: unknown) {
             setError(describeError(requestError, taskId));
         }
     }, [taskId]);
 
+    // First load and "Try again": clear the page and show the spinner.
+    const loadCounts = useCallback(async (): Promise<void> => {
+        setCounts(null);
+        setError(null);
+        await refreshCounts();
+    }, [refreshCounts]);
+
     useEffect(() => {
         loadCounts();
     }, [loadCounts]);
+
+    const connectionStatus = useLabelCountsUpdates(taskId, refreshCounts);
 
     let content: JSX.Element;
     if (error !== null) {
@@ -109,7 +127,12 @@ function LabelCountsPage(): JSX.Element {
             </Row>
             <Row justify='center' className='cvat-label-counts-inner-wrapper'>
                 <Col span={22} xl={18} xxl={14} className='cvat-label-counts-inner'>
-                    <Title level={4}>{`Annotations per label, task #${taskId}`}</Title>
+                    <div className='cvat-label-counts-header'>
+                        <Title level={4}>{`Annotations per label, task #${taskId}`}</Title>
+                        <Tag color={CONNECTION_TAGS[connectionStatus].color}>
+                            {CONNECTION_TAGS[connectionStatus].text}
+                        </Tag>
+                    </div>
                     {content}
                 </Col>
             </Row>
