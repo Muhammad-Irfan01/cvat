@@ -49,7 +49,12 @@ unticked.
       reaches the socket. The socket refuses no login (4401), no access (4403), a missing
       task (4404) and a foreign Origin (4403). [E6](#e6-live-updates).
       Commits `9478d26be`, `e795115b3`, `d4aed2dbf`.
-- [ ] The page recovers when the connection drops and comes back.
+- [x] The page recovers when the connection drops and comes back. With the page open,
+      `cvat_server` was restarted and the socket blocked; 2 boxes were added while it was
+      down. The page showed "reconnecting" with the last counts, then went back to Live
+      and showed the 2 missed boxes (Total 11 → 13) without a reload
+      ([screenshot](img/reconnected.png)). A refused socket (no access) is not retried.
+      [E7](#e7-recovery-after-a-dropped-connection). Commit `928668671`.
 - [ ] Decision record at the end of the Plan.
 
 ## Hygiene
@@ -248,4 +253,77 @@ before: Total: 7
 PATCH add 2 bird boxes while the page is open: 200
 after (same page, no reload): Live
 after (same page, no reload): Total: 9
+```
+
+### E7. Recovery after a dropped connection
+
+Headless Chrome with the page of task #1 open, driven by a script. "page:" is the tag
+next to the title and the total, read from the page once a second. Step 2 blocks the
+socket URL inside the browser, so reconnect attempts fail like during a network outage,
+and restarts `cvat_server`, which drops the open socket.
+
+```
+[  6s] STEP 1: page open
+[  6s] page: Live | Total: 11
+[  7s] page: Live | Total: 11
+[  8s] STEP 2: block the socket URL in the browser, then restart cvat_server
+[ 10s] cvat_server restarted, waiting for the API
+[ 26s] API is back
+[ 26s] page: Connection lost, reconnecting… | Total: 11
+[ 27s] page: Connection lost, reconnecting… | Total: 11
+[ 29s] STEP 3: while the page is disconnected, add 2 boxes through the API -> 200
+[ 29s] page: Connection lost, reconnecting… | Total: 11
+[ 30s] page: Connection lost, reconnecting… | Total: 11
+[ 31s] page: Connection lost, reconnecting… | Total: 11
+[ 32s] STEP 4: unblock the socket URL (network is back)
+[ 32s] page: Connection lost, reconnecting… | Total: 11
+[ 33s] page: Connection lost, reconnecting… | Total: 11
+[ 34s] page: Connection lost, reconnecting… | Total: 11
+[ 35s] page: Connection lost, reconnecting… | Total: 11
+[ 36s] page: Connection lost, reconnecting… | Total: 11
+[ 37s] page: Connection lost, reconnecting… | Total: 11
+[ 38s] page: Connection lost, reconnecting… | Total: 11
+[ 39s] page: Connection lost, reconnecting… | Total: 11
+[ 40s] page: Live | Total: 13
+[ 41s] page: Live | Total: 13
+[ 42s] page: Live | Total: 13
+[ 43s] page: Live | Total: 13
+[ 44s] page: Live | Total: 13
+[ 45s] page: Live | Total: 13
+[ 46s] page: Live | Total: 13
+[ 47s] page: Live | Total: 13
+[ 48s] page: Live | Total: 13
+[ 49s] page: Live | Total: 13
+[ 50s] page: Live | Total: 13
+[ 51s] page: Live | Total: 13
+[ 52s] page: Live | Total: 13
+[ 53s] page: Live | Total: 13
+[ 54s] page: Live | Total: 13
+[ 55s] page: Live | Total: 13
+[ 56s] page: Live | Total: 13
+[ 57s] page: Live | Total: 13
+[ 58s] page: Live | Total: 13
+[ 59s] page: Live | Total: 13
+[ 60s] page: Live | Total: 13
+[ 61s] page: Live | Total: 13
+[ 62s] page: Live | Total: 13
+[ 63s] page: Live | Total: 13
+[ 64s] page: Live | Total: 13
+[ 65s] page: Live | Total: 13
+[ 66s] page: Live | Total: 13
+```
+
+The reconnect came ~8 s after the network was back because the page had failed several
+attempts during the outage, and the delay doubles each time (capped at 30 s).
+
+A socket the server refuses is not retried. The page of task #1 opened as `outsider`,
+watched for 12 s:
+
+```
+Annotations per label, task #1
+Live updates are not available for this task
+Could not load label counts
+You do not have access to the annotations of task #1.
+Try again
+socket connection attempts in the last 20 s (expected 1): 1
 ```
