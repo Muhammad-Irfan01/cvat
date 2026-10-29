@@ -84,7 +84,22 @@ on tasks where users group separate objects by hand.
 commit for every Python file I touch, so instead of rebuilding images, a local compose
 override mounts `cvat/apps/test`, `cvat/settings/base.py` and `cvat/urls.py` into the
 server and worker containers, and the built `cvat-ui/dist` into `cvat_ui`. The override
-lives outside the repository because it holds absolute paths of this machine.
+lives outside the repository because it holds absolute paths of this machine. Its content,
+with paths relative to the repository root (later `cvat/asgi.py` joined it, see below):
+
+```yaml
+x-test-app-mounts: &mounts
+  volumes:
+    - ./cvat/apps/test:/opt/cvat/cvat/apps/test:ro
+    - ./cvat/settings/base.py:/opt/cvat/cvat/settings/base.py:ro
+    - ./cvat/urls.py:/opt/cvat/cvat/urls.py:ro
+    - ./cvat/asgi.py:/opt/cvat/cvat/asgi.py:ro
+services:
+  cvat_server: *mounts          # and the same for every cvat_worker_* service
+  cvat_ui:
+    volumes:
+      - ./cvat-ui/dist:/usr/share/nginx/html:ro   # after `corepack yarn run build:cvat-ui`
+```
 
 **29 Oct — WebSocket without Django Channels.** The plan assumed WebSocket routing had to
 be added. Channels is not in the server image, and adding it means new requirements and
@@ -100,4 +115,36 @@ of the server and import worker containers, and the task is created from there.
 
 ## Decision record
 
-_Written if I reach item 10._
+**Decision: how the chart learns that counts changed (items 8 and 9).**
+
+**Taken: the socket says "changed", the page re-reads the counts over HTTP.**
+A `post_save` receiver on the task's `updated_date` touch publishes the task id to Redis
+after commit (`cvat/apps/test/signals.py`). A small plain ASGI handler in front of Django
+(`cvat/apps/test/websocket.py`) checks the session and the task's `view:annotations` rule
+once on connect, then forwards `{"event": "label_counts_changed"}` for that task. The page
+calls the same `GET /api/test/tasks/<id>/label-counts` it loads with, so the counting and
+the access check exist in one place each, and a user whose access is removed gets a 403
+on the next re-read instead of more counts.
+
+**Rejected: push the new counts through the socket, built on Django Channels.**
+It is the usual Django answer, and the page would update one round trip sooner.
+I rejected it because Channels is not in the server image (new dependency, image rebuild,
+new routing layer in CVAT's ASGI setup), and because the socket would then carry data,
+so it would need its own copy of the access check and of the counting call, checked on
+every push, not once on connect.
+
+**What rejecting it cost.**
+- Latency: each change reaches the chart after the Redis hop, the 300 ms debounce and
+  one extra HTTP request (~50 ms, MO-1). In E6 the socket event arrived within about 2 s
+  of each API call (the call times there are approximate). A push would save the
+  debounce and the HTTP request.
+- Load: every open page re-reads the counts after every change, so N viewers of a busy
+  task run N count queries per change. A push would count once and send N copies. At
+  ~25 ms per query on COCO this is fine for a handful of viewers, not for hundreds.
+- A hand-written WebSocket handler instead of a maintained framework: I own the
+  connect/disconnect handling, the Origin check and the close codes in
+  `websocket.py`, which Channels would have given me.
+
+**What I would do with more time:** count once per change on the server and cache the
+result per task, so the HTTP re-read becomes a cache hit and the load cost goes away
+without moving data into the socket.
