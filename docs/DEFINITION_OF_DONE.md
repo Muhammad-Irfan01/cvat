@@ -30,9 +30,13 @@ unticked.
       [E4](#e4-access-checks). The same user gets 200 once assigned to the task and 403
       again once unassigned, and every decision matches CVAT's own
       `GET /api/tasks/<id>/annotations`.
-- [ ] MO-1 measured: 5 runs, raw output saved, median and spread in
-      [OBJECTIVES.md](OBJECTIVES.md).
-- [ ] MO-1 target met, or missed with the reason written down.
+- [x] MO-1 measured: 5 runs, raw output saved, median and spread in
+      [OBJECTIVES.md](OBJECTIVES.md). Script `docs/bench/label_counts.sh`; raw output of
+      every request in [Results](OBJECTIVES.md#results).
+- [x] MO-1 target met, or missed with the reason written down. Met with token auth:
+      **46.3 ms** median, 0.9 ms spread (target ≤ 100 ms). Missed with basic auth as first
+      planned (619.3 ms), because of per-request password hashing; the reason and the
+      method change are written in [Results](OBJECTIVES.md#results).
 - [ ] One filter or grouping beyond the plain count, and why I chose it.
 - [ ] The chart updates live over WebSocket when annotations change.
 - [ ] The page recovers when the connection drops and comes back.
