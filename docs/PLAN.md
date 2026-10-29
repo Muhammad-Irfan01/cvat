@@ -12,7 +12,7 @@ If the plan changes, I add a dated note under **Changes** instead of rewriting t
 | RAM | 22 GiB |
 | OS | Ubuntu 26.04.1 LTS, kernel 7.0.0-42-generic |
 | Docker | 29.1.3, Compose 2.40.3 |
-| Dataset | COCO 2017 val, `instances_val2017.json`, __N__ images (filled in after import) |
+| Dataset | COCO 2017 val, `instances_val2017.json`, all 5000 images, one task (#4) in 5 jobs of 1000 images |
 
 ## Goal
 
@@ -70,7 +70,25 @@ Items 1–4 are the floor. I do not start step 7 until step 3 is finished and wo
 
 ## Changes
 
-_None yet._
+**29 Oct — the count unit is a stored shape, not a COCO object.** On COCO the endpoint
+returns 41 866, while `instances_val2017.json` holds 36 781 annotations. I expected one
+shape per COCO annotation. In fact CVAT's COCO importer stores each part of a multi-part
+polygon as its own polygon and ties the parts together with `LabeledShape.group`: 3 522
+COCO objects have more than one part, 8 607 polygons in total. Counting each
+(job, frame, group) once gives exactly 36 781, and all 80 labels match (SQL in the
+Definition of Done). I kept counting shapes, because that is what CVAT stores and shows
+annotators. `group` is also a manual feature in CVAT, so merging by it would undercount
+on tasks where users group separate objects by hand.
+
+**29 Oct — how the stack runs my code.** The `cvat/server:dev` image matches the cloned
+commit for every Python file I touch, so instead of rebuilding images, a local compose
+override mounts `cvat/apps/test`, `cvat/settings/base.py` and `cvat/urls.py` into the
+server and worker containers, and the built `cvat-ui/dist` into `cvat_ui`. The override
+lives outside the repository because it holds absolute paths of this machine.
+
+**29 Oct — the images reach CVAT through the share folder.** Uploading 815 MB over HTTP
+on an unstable connection was slow, so the images are copied into `/home/django/share`
+of the server and import worker containers, and the task is created from there.
 
 ## Decision record
 
