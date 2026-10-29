@@ -43,7 +43,12 @@ unticked.
       count gap in the Plan: 41 420 polygons + 446 masks, where the 446 masks are exactly
       COCO's 446 `iscrowd` regions. [E5](#e5-grouping-by-annotation-type),
       [screenshot](img/chart-coco-by-type.png). Commits `35c07d258`, `c956d6200`.
-- [ ] The chart updates live over WebSocket when annotations change.
+- [x] The chart updates live over WebSocket when annotations change. An open page went from
+      Total 7 to Total 9 after two boxes were added through the API, without a reload
+      ([screenshot](img/live-update.png)); an annotation import run by an RQ worker also
+      reaches the socket. The socket refuses no login (4401), no access (4403), a missing
+      task (4404) and a foreign Origin (4403). [E6](#e6-live-updates).
+      Commits `9478d26be`, `e795115b3`, `d4aed2dbf`.
 - [ ] The page recovers when the connection drops and comes back.
 - [ ] Decision record at the end of the Plan.
 
@@ -193,3 +198,54 @@ person iscrowd annotations: 227
 
 Screenshots: [hand-built task](img/chart-known-by-type.png),
 [COCO](img/chart-coco-by-type.png).
+
+### E6. Live updates
+
+Raw output of a small WebSocket client (`ws://localhost:8080/api/test/ws/tasks/<id>/label-counts`,
+logged in with the session cookie like the browser). Times are seconds since the client
+started; the `PATCH` lines are the API calls made while the admin socket was open.
+
+```
+=== no login
+[0.10s] open
+[0.11s] close code=4401
+=== outsider (no access to task 1)
+[0.73s] open
+[0.75s] close code=4403
+=== admin, task 999 (does not exist)
+[0.74s] open
+[0.75s] close code=4404
+=== admin, Origin http://evil.example
+[0.74s] open
+[0.75s] close code=4403
+=== admin, task 1, two annotation changes made through the API while connected
+    [~2s] PATCH create bird box: 200
+    [~4s] PATCH delete bird box: 200
+[0.74s] open
+[2.61s] message {"event": "label_counts_changed", "task_id": 1}
+[5.91s] message {"event": "label_counts_changed", "task_id": 1}
+[8.74s] client closing
+[8.75s] close code=1005
+```
+
+An annotation import (task #1, CVAT 1.1 format) runs in the `cvat_worker_import`
+container, not in the server; the socket still gets the change:
+
+```
+{"rq_id":"action=import&target=task&target_id=1&subresource=annotations"} [202] import started at ~2s
+[0.76s] open
+[3.13s] message {"event": "label_counts_changed", "task_id": 1}
+[3.14s] message {"event": "label_counts_changed", "task_id": 1}
+[20.76s] client closing
+[20.76s] close code=1005
+```
+
+The page itself, in headless Chrome, before and after two boxes were added through the API
+while it stayed open (no reload in between):
+
+```
+before: Total: 7
+PATCH add 2 bird boxes while the page is open: 200
+after (same page, no reload): Live
+after (same page, no reload): Total: 9
+```

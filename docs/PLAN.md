@@ -86,6 +86,14 @@ override mounts `cvat/apps/test`, `cvat/settings/base.py` and `cvat/urls.py` int
 server and worker containers, and the built `cvat-ui/dist` into `cvat_ui`. The override
 lives outside the repository because it holds absolute paths of this machine.
 
+**29 Oct — WebSocket without Django Channels.** The plan assumed WebSocket routing had to
+be added. Channels is not in the server image, and adding it means new requirements and
+an image rebuild. uvicorn already speaks WebSocket and the server's nginx already forwards
+the upgrade, so `cvat/asgi.py` wraps Django's ASGI app with a small handler for one path.
+The compose override now also mounts `cvat/asgi.py`. Change events travel over the Redis
+already in the stack, because annotations are saved by several processes (two uvicorn
+workers, RQ workers) while a socket lives in one.
+
 **29 Oct — the images reach CVAT through the share folder.** Uploading 815 MB over HTTP
 on an unstable connection was slow, so the images are copied into `/home/django/share`
 of the server and import worker containers, and the task is created from there.
