@@ -25,7 +25,8 @@ import { ConnectionStatus, useLabelCountsUpdates } from './use-label-counts-upda
 const CONNECTION_TAGS: Record<ConnectionStatus, { color: string, text: string }> = {
     connecting: { color: 'default', text: 'Connecting…' },
     live: { color: 'green', text: 'Live' },
-    closed: { color: 'red', text: 'Not live: reload to see new changes' },
+    reconnecting: { color: 'orange', text: 'Connection lost, reconnecting…' },
+    refused: { color: 'red', text: 'Live updates are not available for this task' },
 };
 
 // Turns a failed request into a message the user can act on.
